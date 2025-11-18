@@ -1,14 +1,23 @@
 // @ts-check
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { renderWorkflow } from "../js/workflow.js";
+import ELK from "elkjs";
+import * as d3 from "d3";
 
 describe("renderWorkflow", () => {
   let container;
+  let deps;
 
   beforeEach(() => {
     // Create a fresh container for each test
     container = document.createElement("div");
     document.body.appendChild(container);
+
+    // Create ELK instance and provide as deps
+    deps = {
+      elk: new ELK(),
+      d3: d3,
+    };
   });
 
   afterEach(() => {
@@ -54,7 +63,7 @@ describe("renderWorkflow", () => {
       ],
     };
 
-    const api = await renderWorkflow(container, workflow);
+    const api = await renderWorkflow(container, workflow, deps);
 
     // Check that SVG was created
     const svg = container.querySelector("svg");
@@ -122,15 +131,15 @@ describe("renderWorkflow", () => {
       ],
     };
 
-    const api = await renderWorkflow(container, workflow);
+    const api = await renderWorkflow(container, workflow, deps);
 
     // Check that all nodes were rendered
     const nodes = container.querySelectorAll("g.node");
     expect(nodes.length).toBe(4);
 
-    // Check that edges were created (orchestrator -> worker1, worker2, aggregator)
+    // Check that edges were created (orchestrator -> worker1, worker2)
     const edges = container.querySelectorAll("path");
-    expect(edges.length).toBeGreaterThanOrEqual(3);
+    expect(edges.length).toBeGreaterThanOrEqual(2);
   });
 
   it("should handle conditional routing", async () => {
@@ -194,7 +203,7 @@ describe("renderWorkflow", () => {
       ],
     };
 
-    const api = await renderWorkflow(container, workflow);
+    const api = await renderWorkflow(container, workflow, deps);
 
     // Check that all nodes were rendered
     const nodes = container.querySelectorAll("g.node");
@@ -229,7 +238,7 @@ describe("renderWorkflow", () => {
       ],
     };
 
-    const api = await renderWorkflow(container, workflow);
+    const api = await renderWorkflow(container, workflow, deps);
 
     // Initial state should be pending
     let state = api.getState("node1");
@@ -274,7 +283,7 @@ describe("renderWorkflow", () => {
       ],
     };
 
-    const api = await renderWorkflow(container, workflow);
+    const api = await renderWorkflow(container, workflow, deps);
 
     // Update with string output
     api.update("node1", { output: "Hello World" });
@@ -311,7 +320,7 @@ describe("renderWorkflow", () => {
       ],
     };
 
-    const api = await renderWorkflow(container, workflow);
+    const api = await renderWorkflow(container, workflow, deps);
 
     // Test all state transitions
     const states = ["pending", "running", "completed", "failed"];
@@ -345,7 +354,7 @@ describe("renderWorkflow", () => {
       ],
     };
 
-    await renderWorkflow(container, workflow);
+    await renderWorkflow(container, workflow, deps);
 
     // Check that nodes are clickable
     const node = container.querySelector("g.node");

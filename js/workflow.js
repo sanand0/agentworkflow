@@ -4,24 +4,27 @@
  * Renders an agentic workflow as an interactive SVG using elkjs layout
  * @param {HTMLElement} container - Container element for the SVG
  * @param {object} workflow - Workflow definition
+ * @param {object} [deps] - Optional dependencies { elk, d3 } for testing
  * @returns {Promise<object>} API for updating node states
  */
-export async function renderWorkflow(container, workflow) {
-  // @ts-ignore - CDN imports not recognized by TypeScript
-  const elkModule = await import("https://cdn.jsdelivr.net/npm/elkjs@0.9/lib/elk.bundled.js");
-  // Handle different export formats
-  let ELK;
-  if (typeof elkModule.default === "function") {
-    ELK = elkModule.default;
-  } else if (typeof elkModule === "function") {
-    ELK = elkModule;
+export async function renderWorkflow(container, workflow, deps = null) {
+  let elk, d3;
+
+  if (deps) {
+    // Use provided dependencies (for testing)
+    elk = deps.elk;
+    d3 = deps.d3;
   } else {
-    // The module might export ELK directly
-    ELK = elkModule.ELK || elkModule.default?.ELK || elkModule;
+    // Load from CDN (for browser)
+    // @ts-ignore - CDN imports not recognized by TypeScript
+    const d3Module = await import("https://cdn.jsdelivr.net/npm/d3@7/+esm");
+    d3 = d3Module;
+
+    // For elkjs, the bundled version should export the constructor directly
+    // @ts-ignore - CDN imports not recognized by TypeScript
+    const ELK = (await import("https://cdn.jsdelivr.net/npm/elkjs@0.9/lib/elk.bundled.js")).default;
+    elk = new ELK();
   }
-  const elk = new ELK();
-  // @ts-ignore - CDN imports not recognized by TypeScript
-  const d3 = await import("https://cdn.jsdelivr.net/npm/d3@7/+esm");
 
   // Build graph structure for elk
   const elkGraph = {
