@@ -8,8 +8,18 @@
  */
 export async function renderWorkflow(container, workflow) {
   // @ts-ignore - CDN imports not recognized by TypeScript
-  const ELK = await import("https://cdn.jsdelivr.net/npm/elkjs@0.9/lib/elk.bundled.js");
-  const elk = new ELK.default();
+  const elkModule = await import("https://cdn.jsdelivr.net/npm/elkjs@0.9/lib/elk.bundled.js");
+  // Handle different export formats
+  let ELK;
+  if (typeof elkModule.default === "function") {
+    ELK = elkModule.default;
+  } else if (typeof elkModule === "function") {
+    ELK = elkModule;
+  } else {
+    // The module might export ELK directly
+    ELK = elkModule.ELK || elkModule.default?.ELK || elkModule;
+  }
+  const elk = new ELK();
   // @ts-ignore - CDN imports not recognized by TypeScript
   const d3 = await import("https://cdn.jsdelivr.net/npm/d3@7/+esm");
 
