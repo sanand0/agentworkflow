@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Workflow Visualization Demo</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        padding: 20px;
+      }
+      #workflow-container {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background: #fff;
+        overflow: auto;
+        min-height: 500px;
+      }
+      .node-popup .modal-dialog {
+        margin: 1.75rem auto;
+      }
+      #loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-fluid">
+      <h1 class="mb-4">Workflow Visualization Demo</h1>
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label for="workflow-select" class="form-label"
+            >Select Workflow</label
+          >
+          <select class="form-select" id="workflow-select">
+            <option value="simple_chain.json">
+              Simple Chain - Document Summarization
+            </option>
+            <option value="conditional_routing.json">
+              Conditional Routing - Content Moderation
+            </option>
+            <option value="parallel_execution.json">
+              Parallel Execution - Multi-Perspective Analysis
+            </option>
+          </select>
+        </div>
+        <div class="col-md-6 d-flex align-items-end">
+          <button class="btn btn-primary me-2" id="run-workflow">
+            Run Workflow
+          </button>
+          <button class="btn btn-secondary" id="reset-workflow">Reset</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12">
+          <div id="workflow-container" class="position-relative">
+            <div id="loading" class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mt-3">
+        <div class="col-12">
+          <div class="alert alert-info">
+            <strong>How to use:</strong>
+            <ul class="mb-0">
+              <li>Select a workflow from the dropdown</li>
+              <li>Click "Run Workflow" to simulate execution</li>
+              <li>Watch nodes change color as they execute</li>
+              <li>Click any node to view details and output</li>
+              <li>
+                Node colors: Gray (pending), Yellow (running), Green
+                (completed), Red (failed)
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "d3": "https://cdn.jsdelivr.net/npm/d3@7/+esm",
+          "elkjs": "https://cdn.jsdelivr.net/npm/elkjs@0.9/lib/elk.bundled.js"
+        }
+      }
+    </script>
+
+    <script type="module">
+      // @ts-check
+      import { renderWorkflow } from "../js/workflow.js";
+
+      const $ = (s, el = document) => el.querySelector(s);
+      const workflowSelect = $("#workflow-select");
+      const runButton = $("#run-workflow");
+      const resetButton = $("#reset-workflow");
+      const container = $("#workflow-container");
+      const loading = $("#loading");
+
+      let currentWorkflow = null;
+      let workflowAPI = null;
+      let isRunning = false;
+
+      // Load initial workflow
+      loadWorkflow(workflowSelect.value);
+
+      // Event listeners
+      workflowSelect.addEventListener("change", () => {
+        if (!isRunning) {
+          loadWorkflow(workflowSelect.value);
+        }
+      });
+
+      runButton.addEventListener("click", () => {
+        if (!isRunning && currentWorkflow) {
+          runWorkflowSimulation();
+        }
+      });
+
+      resetButton.addEventListener("click", () => {
+        if (!isRunning) {
+          loadWorkflow(workflowSelect.value);
+        }
+      });
+
+      /**
+       * Load and render a workflow
+       */
+      async function loadWorkflow(filename) {
+        try {
+          loading.style.display = "block";
+          const response = await fetch(filename);
+          currentWorkflow = await response.json();
+
+          workflowAPI = await renderWorkflow(container, currentWorkflow);
+          loading.style.display = "none";
+        } catch (error) {
+          loading.style.display = "none";
+          console.error("Error loading workflow:", error);
+          alert(`Failed to load workflow: ${error.message}`);
+        }
+      }
+
+      /**
+       * Simulate running the workflow
+       */
+      async function runWorkflowSimulation() {
+        if (!currentWorkflow || !workflowAPI) return;
+
+        isRunning = true;
+        runButton.disabled = true;
+        resetButton.disabled = true;
+        workflowSelect.disabled = true;
+
+        try {
+          // Find execution order using BFS from entry point
+          const executionOrder = getExecutionOrder(currentWorkflow);
+
+          for (const nodeId of executionOrder) {
+            const node = currentWorkflow.nodes.find((n) => n.id === nodeId);
+            if (!node) continue;
+
+            // Mark as running
+            workflowAPI.update(nodeId, { state: "running" });
+
+            // Simulate processing time
+            await sleep(1000 + Math.random() * 1500);
+
+            // Simulate streaming output if sample_output exists
+            if (node.sample_output) {
+              await simulateStreamingOutput(nodeId, node.sample_output);
+            }
+
+            // Mark as completed
+            workflowAPI.update(nodeId, {
+              state: "completed",
+              output: node.sample_output || { result: "No sample output" },
+            });
+
+            // Small delay before next node
+            await sleep(500);
+          }
+        } catch (error) {
+          console.error("Error running workflow:", error);
+          alert(`Workflow execution failed: ${error.message}`);
+        } finally {
+          isRunning = false;
+          runButton.disabled = false;
+          resetButton.disabled = false;
+          workflowSelect.disabled = false;
+        }
+      }
+
+      /**
+       * Simulate streaming output by gradually building the output
+       */
+      async function simulateStreamingOutput(nodeId, finalOutput) {
+        const outputStr = JSON.stringify(finalOutput, null, 2);
+        const chunks = 10;
+        const chunkSize = Math.ceil(outputStr.length / chunks);
+
+        for (let i = 1; i <= chunks; i++) {
+          const partialOutput = outputStr.slice(0, i * chunkSize);
+          workflowAPI.update(nodeId, {
+            state: "running",
+            output: partialOutput,
+          });
+          await sleep(100);
+        }
+      }
+
+      /**
+       * Get execution order using BFS from entry point
+       */
+      function getExecutionOrder(workflow) {
+        const order = [];
+        const visited = new Set();
+        const queue = [workflow.entry_point];
+
+        while (queue.length > 0) {
+          const nodeId = queue.shift();
+          if (visited.has(nodeId) || !nodeId) continue;
+
+          visited.add(nodeId);
+          order.push(nodeId);
+
+          const node = workflow.nodes.find((n) => n.id === nodeId);
+          if (!node) continue;
+
+          // Add next nodes to queue
+          if (node.parallel) {
+            queue.push(...node.parallel);
+          } else if (typeof node.next === "string") {
+            queue.push(node.next);
+          } else if (typeof node.next === "object" && node.next !== null) {
+            // For conditional routing, add all possible next nodes
+            queue.push(...Object.keys(node.next));
+          }
+        }
+
+        return order;
+      }
+
+      /**
+       * Sleep utility
+       */
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+    </script>
+  </body>
+</html>

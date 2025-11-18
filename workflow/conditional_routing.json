@@ -1,0 +1,140 @@
+{
+  "workflow": {
+    "name": "content_moderation",
+    "description": "Content moderation workflow with conditional routing",
+    "version": "1.0"
+  },
+  "defaults": {
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0.2,
+    "max_tokens": 1024
+  },
+  "entry_point": "classify_content",
+  "nodes": [
+    {
+      "id": "classify_content",
+      "name": "Classify Content",
+      "type": "llm",
+      "instructions": "Analyze the content and classify its risk level: safe, moderate, or high_risk.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "risk_level": {
+            "type": "string",
+            "enum": ["safe", "moderate", "high_risk"]
+          },
+          "categories": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "confidence": { "type": "number" }
+        },
+        "required": ["risk_level", "confidence"]
+      },
+      "next": {
+        "human_review": "output.risk_level == 'high_risk'",
+        "detailed_analysis": "output.risk_level == 'moderate' || output.confidence < 0.8",
+        "approve_content": "true"
+      },
+      "sample_output": {
+        "risk_level": "moderate",
+        "categories": ["controversial_topic"],
+        "confidence": 0.75
+      }
+    },
+    {
+      "id": "detailed_analysis",
+      "name": "Detailed Analysis",
+      "type": "llm",
+      "instructions": "Perform deeper analysis of potentially problematic content. Provide specific reasoning.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "safe_to_publish": { "type": "boolean" },
+          "reasoning": { "type": "string" },
+          "recommendations": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["safe_to_publish", "reasoning"]
+      },
+      "next": {
+        "human_review": "output.safe_to_publish == false",
+        "approve_content": "true"
+      },
+      "sample_output": {
+        "safe_to_publish": true,
+        "reasoning": "While the topic is controversial, the content is factual, balanced, and does not contain harmful language or misinformation.",
+        "recommendations": [
+          "Consider adding content warning",
+          "Enable comments moderation"
+        ]
+      }
+    },
+    {
+      "id": "human_review",
+      "name": "Human Review Required",
+      "type": "human",
+      "human_prompt": "Content requires manual review.\n\nRisk Level: {{output.risk_level}}\nCategories: {{output.categories}}\n\nPlease approve or reject this content.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "approved": { "type": "boolean" },
+          "notes": { "type": "string" }
+        },
+        "required": ["approved"]
+      },
+      "next": {
+        "approve_content": "output.approved == true",
+        "reject_content": "true"
+      },
+      "sample_output": {
+        "approved": true,
+        "notes": "Approved with recommendation to add content warning label."
+      }
+    },
+    {
+      "id": "approve_content",
+      "name": "Approve Content",
+      "type": "llm",
+      "instructions": "Generate approval report with any recommendations.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "approved_at": { "type": "string" },
+          "notes": { "type": "string" }
+        },
+        "required": ["status"]
+      },
+      "next": null,
+      "sample_output": {
+        "status": "approved",
+        "approved_at": "2025-01-15T10:30:00Z",
+        "notes": "Content approved. Recommended to add content warning for sensitive topic."
+      }
+    },
+    {
+      "id": "reject_content",
+      "name": "Reject Content",
+      "type": "llm",
+      "instructions": "Generate rejection report with clear reasoning.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "reason": { "type": "string" },
+          "rejected_at": { "type": "string" }
+        },
+        "required": ["status", "reason"]
+      },
+      "next": null,
+      "sample_output": {
+        "status": "rejected",
+        "reason": "Content contains harmful misinformation that violates community guidelines.",
+        "rejected_at": "2025-01-15T10:30:00Z"
+      }
+    }
+  ]
+}

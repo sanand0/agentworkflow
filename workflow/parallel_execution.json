@@ -1,0 +1,168 @@
+{
+  "workflow": {
+    "name": "multi_perspective_analysis",
+    "description": "Parallel execution workflow for multi-perspective document analysis",
+    "version": "1.0"
+  },
+  "defaults": {
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0.4,
+    "max_tokens": 2048
+  },
+  "entry_point": "initial_review",
+  "nodes": [
+    {
+      "id": "initial_review",
+      "name": "Initial Review",
+      "type": "llm",
+      "instructions": "Perform initial review of the document and categorize it.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "category": { "type": "string" },
+          "length": { "type": "number" },
+          "language": { "type": "string" }
+        },
+        "required": ["category"]
+      },
+      "next": "parallel_analysis",
+      "sample_output": {
+        "category": "technical_report",
+        "length": 2500,
+        "language": "en"
+      }
+    },
+    {
+      "id": "parallel_analysis",
+      "name": "Multi-Perspective Analysis",
+      "type": "llm",
+      "parallel": ["technical_review", "business_review", "risk_assessment"],
+      "collect": "all",
+      "next": "synthesize_findings"
+    },
+    {
+      "id": "technical_review",
+      "name": "Technical Review",
+      "type": "llm",
+      "instructions": "Analyze the technical aspects: accuracy, methodology, technical depth, and implementation feasibility.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "technical_score": { "type": "number" },
+          "strengths": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "concerns": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["technical_score"]
+      },
+      "sample_output": {
+        "technical_score": 8.5,
+        "strengths": [
+          "Well-documented methodology",
+          "Clear technical specifications",
+          "Comprehensive testing approach"
+        ],
+        "concerns": [
+          "Scalability concerns not fully addressed",
+          "Missing performance benchmarks"
+        ]
+      }
+    },
+    {
+      "id": "business_review",
+      "name": "Business Review",
+      "type": "llm",
+      "instructions": "Evaluate business impact: market fit, ROI potential, competitive advantage, and resource requirements.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "business_score": { "type": "number" },
+          "market_potential": { "type": "string" },
+          "estimated_roi": { "type": "string" }
+        },
+        "required": ["business_score"]
+      },
+      "sample_output": {
+        "business_score": 7.8,
+        "market_potential": "High - addresses clear market need with innovative approach",
+        "estimated_roi": "Positive ROI expected within 18-24 months"
+      }
+    },
+    {
+      "id": "risk_assessment",
+      "name": "Risk Assessment",
+      "type": "llm",
+      "instructions": "Identify potential risks: technical risks, market risks, compliance issues, and mitigation strategies.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "risk_level": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          },
+          "key_risks": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "mitigation_strategies": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["risk_level", "key_risks"]
+      },
+      "sample_output": {
+        "risk_level": "medium",
+        "key_risks": [
+          "Dependency on emerging technology",
+          "Regulatory landscape uncertainty",
+          "Competitive response risk"
+        ],
+        "mitigation_strategies": [
+          "Build fallback mechanisms",
+          "Engage regulatory advisors early",
+          "Accelerate time-to-market"
+        ]
+      }
+    },
+    {
+      "id": "synthesize_findings",
+      "name": "Synthesize Findings",
+      "type": "llm",
+      "instructions": "Combine all perspectives into a comprehensive recommendation. Consider technical, business, and risk factors.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "overall_score": { "type": "number" },
+          "recommendation": {
+            "type": "string",
+            "enum": ["proceed", "proceed_with_conditions", "revise", "reject"]
+          },
+          "executive_summary": { "type": "string" },
+          "next_steps": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["overall_score", "recommendation", "executive_summary"]
+      },
+      "next": null,
+      "sample_output": {
+        "overall_score": 8.1,
+        "recommendation": "proceed_with_conditions",
+        "executive_summary": "Strong technical foundation with good business potential. Recommend proceeding with enhanced risk mitigation and clearer scalability plan.",
+        "next_steps": [
+          "Address scalability concerns with detailed architecture review",
+          "Conduct regulatory compliance assessment",
+          "Develop detailed go-to-market timeline",
+          "Establish performance benchmarks"
+        ]
+      }
+    }
+  ]
+}

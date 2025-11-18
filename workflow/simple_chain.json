@@ -1,0 +1,80 @@
+{
+  "workflow": {
+    "name": "simple_summarization",
+    "description": "Simple chain workflow for document summarization",
+    "version": "1.0"
+  },
+  "defaults": {
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0.3,
+    "max_tokens": 2048
+  },
+  "entry_point": "extract_key_points",
+  "nodes": [
+    {
+      "id": "extract_key_points",
+      "name": "Extract Key Points",
+      "type": "llm",
+      "instructions": "Read the document and extract the main key points as a bulleted list.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "key_points": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
+        "required": ["key_points"]
+      },
+      "next": "generate_summary",
+      "sample_output": {
+        "key_points": [
+          "AI workflows enable complex multi-step processing",
+          "Routing allows conditional execution paths",
+          "Parallel execution improves performance",
+          "Human-in-the-loop ensures quality control"
+        ]
+      }
+    },
+    {
+      "id": "generate_summary",
+      "name": "Generate Summary",
+      "type": "llm",
+      "instructions": "Create a concise summary based on the extracted key points.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "summary": { "type": "string" },
+          "word_count": { "type": "number" }
+        },
+        "required": ["summary", "word_count"]
+      },
+      "next": "validate_quality",
+      "sample_output": {
+        "summary": "This document explores agentic AI workflows, highlighting their ability to handle complex processing through routing, parallelization, and human oversight. These capabilities enable sophisticated automation while maintaining quality standards.",
+        "word_count": 28
+      }
+    },
+    {
+      "id": "validate_quality",
+      "name": "Quality Check",
+      "type": "llm",
+      "instructions": "Validate the summary quality. Check for accuracy, completeness, and clarity.",
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "valid": { "type": "boolean" },
+          "score": { "type": "number" },
+          "feedback": { "type": "string" }
+        },
+        "required": ["valid", "score"]
+      },
+      "next": null,
+      "sample_output": {
+        "valid": true,
+        "score": 0.92,
+        "feedback": "Summary is clear, concise, and captures all key points effectively."
+      }
+    }
+  ]
+}
