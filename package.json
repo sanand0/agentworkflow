@@ -1,0 +1,9 @@
+{
+  "name": "agentworkflow",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "dprint fmt -c https://raw.githubusercontent.com/sanand0/scripts/refs/heads/main/dprint.jsonc && npx -y oxlint --fix"
+  },
+  "type": "module"
+}
